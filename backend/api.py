@@ -60,9 +60,9 @@ async def lifespan(app: FastAPI):
 # App
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="Green Fleet Optimizer API",
-    description="Quantum-Inspired Maritime Fleet Optimization - SIH 2025",
-    version="1.0.0",
+    title="NautiQ Fleet Optimizer API",
+    description="NautiQ: Quantum-Inspired Maritime Fleet Optimization - SIH 2026",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
