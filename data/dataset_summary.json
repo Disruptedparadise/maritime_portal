@@ -1,0 +1,92 @@
+{
+  "dataset_name": "SIH Green Maritime Hydrodynamic & Multi-Fuel Fleet Dataset",
+  "total_voyages": 5000,
+  "vessel_classes": {
+    "Tanker_Aframax": 858,
+    "Bulk_Capesize": 846,
+    "Container_Feeder": 837,
+    "Bulk_Handysize": 829,
+    "Container_ULCV": 816,
+    "Container_Panamax": 814
+  },
+  "vessel_categories": {
+    "Container": 2467,
+    "Bulk Carrier": 1675,
+    "Tanker": 858
+  },
+  "fuel_types": {
+    "LNG": 1466,
+    "HFO": 1444,
+    "Methanol": 1330,
+    "Ammonia": 594,
+    "Hydrogen": 166
+  },
+  "shore_power_usage": {
+    "false": 2522,
+    "true": 2478
+  },
+  "features": {
+    "speed_knots": {
+      "min": 9.01,
+      "max": 25.0,
+      "mean": 14.9
+    },
+    "distance_nm": {
+      "min": 162.2,
+      "max": 11364.4,
+      "mean": 4788.67
+    },
+    "cargo_load_factor": {
+      "min": 0.35,
+      "max": 0.98,
+      "mean": 0.66
+    },
+    "observed_fuel_consumed_kg": {
+      "min": 9737.2,
+      "max": 17028602.5,
+      "mean": 1329374.97
+    },
+    "wtw_co2e_emissions_kg": {
+      "min": 959.0,
+      "max": 38959167.6,
+      "mean": 1892507.71
+    },
+    "cii_rating_g_co2_dwt_nm": {
+      "min": 0.0,
+      "max": 24.348,
+      "mean": 5.448
+    }
+  },
+  "fuel_averages": {
+    "HFO": {
+      "avg_fuel_consumed_kg": 892965.1,
+      "avg_ttw_co2_kg": 2782268.3,
+      "avg_wtw_co2e_kg": 3268434.2,
+      "avg_voyage_cost_usd": 899961.5
+    },
+    "Ammonia": {
+      "avg_fuel_consumed_kg": 2957605.3,
+      "avg_ttw_co2_kg": 0.0,
+      "avg_wtw_co2e_kg": 368943.9,
+      "avg_voyage_cost_usd": 2855922.5
+    },
+    "LNG": {
+      "avg_fuel_consumed_kg": 719843.7,
+      "avg_ttw_co2_kg": 1978740.6,
+      "avg_wtw_co2e_kg": 2311390.8,
+      "avg_voyage_cost_usd": 846558.4
+    },
+    "Methanol": {
+      "avg_fuel_consumed_kg": 1830111.6,
+      "avg_ttw_co2_kg": 2517513.6,
+      "avg_wtw_co2e_kg": 845591.8,
+      "avg_voyage_cost_usd": 2019223.8
+    },
+    "Hydrogen": {
+      "avg_fuel_consumed_kg": 670339.2,
+      "avg_ttw_co2_kg": 0.0,
+      "avg_wtw_co2e_kg": 64040.9,
+      "avg_voyage_cost_usd": 2847426.3
+    }
+  }
+}

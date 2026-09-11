@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NAV-Q // QUANTUM MARITIME TELEMETRY CONSOLE</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              black: '#000000',
+              surface: '#09090b',
+              panel: '#121214',
+              subtle: '#18181b',
+              border: '#27272a',
+              borderLight: '#3f3f46',
+              muted: '#71717a',
+              textMuted: '#a1a1aa',
+              white: '#ffffff',
+            }
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'SFMono-Regular', 'Menlo', 'monospace'],
+            sans: ['"Inter"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet (Secondary View) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #000000;
+      color: #e4e4e7;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-terminal { font-family: 'JetBrains Mono', monospace; }
+
+    /* Crisp Technical Borders */
+    .b-panel {
+      background: #09090b;
+      border: 1px solid #27272a;
+    }
+    .b-panel-light {
+      background: #121214;
+      border: 1px solid #3f3f46;
+    }
+
+    /* Monochrome Scrollbars */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; }
+    ::-webkit-scrollbar-thumb:hover { background: #71717a; }
+
+    /* Technical Scanline effect (subtle) */
+    .telemetry-grid {
+      background-size: 24px 24px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    }
+
+    /* Range input monochrome styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 2px;
+      background: #27272a;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      background: #ffffff;
+      border-radius: 0;
+      cursor: pointer;
+      border: 1px solid #000000;
+    }
+
+    /* Custom Form Controls */
+    select, input[type=number], input[type=text] {
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #27272a;
+      border-radius: 0px;
+      padding: 6px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      outline: none;
+    }
+    select:focus, input[type=number]:focus, input[type=text]:focus {
+      border-color: #ffffff;
+    }
+
+    /* Navigation Tabs */
+    .nav-tab {
+      background: transparent;
+      border-bottom: 2px solid transparent;
+      color: #71717a;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 10px 16px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .nav-tab:hover {
+      color: #ffffff;
+      background: #09090b;
+    }
+    .nav-tab.active {
+      color: #ffffff;
+      border-bottom: 2px solid #ffffff;
+      background: #09090b;
+      font-weight: 600;
+    }
+
+    /* Tactical Buttons */
+    .btn-action {
+      background: #ffffff;
+      color: #000000;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 8px 16px;
+      border: 1px solid #ffffff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      background: #000000;
+      color: #ffffff;
+    }
+    .btn-outline {
+      background: transparent;
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 6px 12px;
+      border: 1px solid #27272a;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-outline:hover {
+      border-color: #ffffff;
+    }
+    .btn-outline.active {
+      background: #ffffff;
+      color: #000000;
+      border-color: #ffffff;
+      font-weight: 700;
+    }
+
+    /* Map styling monochrome */
+    #map { height: 480px; width: 100%; border: 1px solid #27272a; }
+    .leaflet-container { background: #000000 !important; }
+    .leaflet-tile { filter: grayscale(100%) invert(100%) contrast(140%) brightness(80%); }
+
+    /* Blinking Cursor Indicator */
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .live-indicator { animation: blink 1.5s infinite; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col telemetry-grid">
+
+  <!-- ========================================================================= -->
+  <!-- TOP SYSTEM BAR (AIR-TRAFFIC CONSOLE HEADER) -->
+  <!-- ========================================================================= -->
+  <header class="border-b border-brand-border bg-black sticky top-0 z-50">
+    <div class="px-6 py-2.5 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 bg-white live-indicator"></span>
+          <span class="font-terminal font-bold text-sm tracking-wider text-white">NAV-Q // MARITIME TELEMETRY</span>
+        </div>
+        <span class="text-xs font-terminal text-brand-muted border-l border-brand-border pl-3 hidden md:inline">
+          PROTOCOL: HQCKL-6Q // HILBERT-64
+        </span>
+        <span class="text-xs font-terminal text-brand-muted border-l border-brand-border pl-3 hidden lg:inline">
+          SYS: <span id="sysStatusText" class="text-white">CHECKING...</span>
+        </span>
+      </div>
+
+      <div class="flex items-center gap-6 font-terminal text-xs">
+        <div class="hidden sm:flex items-center gap-2 text-brand-muted">
+          <span>UTC:</span>
+          <span id="liveClock" class="text-white font-mono">00:00:00Z</span>
+        </div>
+        <div class="border border-brand-border px-2.5 py-1 text-xs">
+          <span class="text-brand-muted">IMO-CII:</span> <span class="text-white font-bold">2026_ACTIVE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRIMARY TABS NAVIGATION -->
+    <div class="px-6 flex border-t border-brand-border bg-black gap-1 overflow-x-auto">
+      <button class="nav-tab active" onclick="switchSection('predict', this)">[01] Quantum Fuel Predictor</button>
+      <button class="nav-tab" onclick="switchSection('benchmarks', this)">[02] Scientific Benchmarks &amp; Quantum Advantage</button>
+      <button class="nav-tab" onclick="switchSection('imo', this)">[03] IMO Regulatory Trajectory</button>
+      <button class="nav-tab" onclick="switchSection('optimizer', this)">[04] Fleet Optimization &amp; Pareto Studio</button>
+      <button class="nav-tab" onclick="switchSection('corridors', this)">[05] Geospatial Corridors</button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 1: QUANTUM FUEL PREDICTOR (HERO SECTION) -->
+    <!-- ======================================================================= -->
+    <section id="section-predict" class="space-y-6">
+      
+      <!-- Section Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-border pb-4 gap-2">
+        <div>
+          <div class="font-terminal text-xs text-brand-muted tracking-widest">MODULE 01 // HYDRODYNAMIC QUANTUM INFERENCE</div>
+          <h1 class="text-lg font-bold text-white tracking-tight uppercase mt-0.5">Real-Time Quantum Kernel Fuel Predictor</h1>
+        </div>
+        <div class="font-terminal text-xs text-brand-muted flex items-center gap-3">
+          <span>MODEL: <strong class="text-white">HQCKL (6-QUBIT ANGLE ENCODED)</strong></span>
+          <span class="border-l border-brand-border pl-3">ACCURACY: <strong class="text-white">R² 0.9291</strong></span>
+        </div>
+      </div>
+
+      <!-- Main Prediction Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT: PARAMETER CONTROLS (5 COLS) -->
+        <div class="lg:col-span-5 b-panel p-5 space-y-5">
+          <div class="flex items-center justify-between border-b border-brand-border pb-3">
+            <span class="font-terminal text-xs font-bold text-white uppercase tracking-wider">Operational Parameters</span>
+            <span class="font-terminal text-xs text-brand-muted">INPUT TELEMETRY</span>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Vessel Class Selection -->
+            <div>
+              <label class="block font-terminal text-xs text-brand-textMuted uppercase mb-1.5">Vessel Specification</label>
+              <select id="p_vessel" class="w-full" onchange="triggerPredict()">
+                <option value="Container Feeder">Container Feeder (34,000 DWT // 2,500 TEU)</option>
+                <option value="Panamax Container">Panamax Container (68,000 DWT // 5,500 TEU)</option>
+                <option value="ULCV">ULCV Ultra Large Container (195,000 DWT // 18,000 TEU)</option>
+                <option value="Bulk Handysize">Bulk Handysize (38,000 DWT // Geared)</option>
+                <option value="Capesize Bulk">Capesize Bulk (180,000 DWT // Gearless)</option>
+                <option value="Aframax Tanker">Aframax Tanker (115,000 DWT // Crude Carrier)</option>
+              </select>
+            </div>
+
+            <!-- Fuel Selection -->
+            <div>
+              <label class="block font-terminal text-xs text-brand-textMuted uppercase mb-1.5">Bunkered Fuel Type</label>
+              <select id="p_fuel" class="w-full" onchange="triggerPredict()">
+                <option value="HFO">HFO // VLSFO (LHV: 40.5 MJ/kg | Cost: $600/t | WTW: 3.65)</option>
+                <option value="LNG" selected>LNG // Liquefied Gas (LHV: 49.2 MJ/kg | Cost: $800/t | WTW: 3.20)</option>
+                <option value="Methanol">e-Methanol // Green (LHV: 19.9 MJ/kg | Cost: $1,050/t | WTW: 0.45)</option>
+                <option value="Ammonia">Green Ammonia // NH3 (LHV: 18.6 MJ/kg | Cost: $1,200/t | WTW: 0.15)</option>
+                <option value="Hydrogen">Liquid Hydrogen // LH2 (LHV: 120.0 MJ/kg | Cost: $3,500/t | WTW: 0.05)</option>
+              </select>
+            </div>
+
+            <!-- Speed Range Slider -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between font-terminal text-xs">
+                <span class="text-brand-textMuted">SERVICE SPEED</span>
+                <span id="val_speed" class="text-white font-bold">14.0 KNOTS</span>
+              </div>
+              <input type="range" id="p_speed" min="10" max="24" step="0.5" value="14.0" oninput="updateVal('speed', this.value, 'KNOTS'); triggerPredict();" />
+              <div class="flex justify-between font-terminal text-[10px] text-brand-muted">
+                <span>10.0 (SLOW STEAM)</span>
+                <span>17.0 (DESIGN)</span>
+                <span>24.0 (FLANK)</span>
+              </div>
+            </div>
+
+            <!-- Distance Slider -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between font-terminal text-xs">
+                <span class="text-brand-textMuted">VOYAGE DISTANCE</span>
+                <span id="val_dist" class="text-white font-bold">5,000 NM</span>
+              </div>
+              <input type="range" id="p_dist" min="200" max="12000" step="100" value="5000" oninput="updateVal('dist', Number(this.value).toLocaleString(), 'NM'); triggerPredict();" />
+              <div class="flex justify-between font-terminal text-[10px] text-brand-muted">
+                <span>200 NM (FEEDER)</span>
+                <span>5,000 NM</span>
+                <span>12,000 NM (GLOBAL)</span>
+              </div>
+            </div>
+
+            <!-- Cargo Load Factor -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between font-terminal text-xs">
+                <span class="text-brand-textMuted">CARGO UTILIZATION</span>
+                <span id="val_load" class="text-white font-bold">75 %</span>
+              </div>
+              <input type="range" id="p_load" min="0.2" max="1.0" step="0.05" value="0.75" oninput="updateVal('load', Math.round(this.value*100), '%'); triggerPredict();" />
+              <div class="flex justify-between font-terminal text-[10px] text-brand-muted">
+                <span>20% (BALLAST)</span>
+                <span>75% (TYPICAL)</span>
+                <span>100% (FULL DRAFT)</span>
+              </div>
+            </div>
+
+            <!-- Environmental Sea State (Wave Height) -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between font-terminal text-xs">
+                <span class="text-brand-textMuted">SIGNIFICANT WAVE HEIGHT (HS)</span>
+                <span id="val_wave" class="text-white font-bold">1.5 M</span>
+              </div>
+              <input type="range" id="p_wave" min="0.5" max="6.0" step="0.5" value="1.5" oninput="updateVal('wave', this.value, 'M'); triggerPredict();" />
+              <div class="flex justify-between font-terminal text-[10px] text-brand-muted">
+                <span>0.5M (BEAUFORT 2)</span>
+                <span>3.0M (MODERATE)</span>
+                <span>6.0M (ROUGH/STORM)</span>
+              </div>
+            </div>
+
+            <!-- Carbon Tax Slider -->
+            <div class="space-y-1.5 pt-1">
+              <div class="flex justify-between font-terminal text-xs">
+                <span class="text-brand-textMuted">CARBON PENALTY (TAX)</span>
+                <span id="val_tax" class="text-white font-bold">$50 / TON CO2</span>
+              </div>
+              <input type="range" id="p_tax" min="0" max="300" step="10" value="50" oninput="updateVal('tax', '$' + this.value, '/ TON CO2'); triggerPredict();" />
+              <div class="flex justify-between font-terminal text-[10px] text-brand-muted">
+                <span>$0 (EXEMPT)</span>
+                <span>$100 (IMO ESTIMATE)</span>
+                <span>$300 (EU ETS CAP)</span>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="pt-2 flex items-center justify-between border-t border-brand-border">
+            <button class="btn-action w-full py-2.5" onclick="triggerPredict()">
+              EXECUTE QUANTUM INFERENCE &gt;&gt;
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT: LIVE QUANTUM TELEMETRY & RESULTS (7 COLS) -->
+        <div class="lg:col-span-7 space-y-6">
+
+          <!-- Primary Telemetry Metric Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            
+            <div class="b-panel p-4">
+              <div class="font-terminal text-[10px] text-brand-muted uppercase">PREDICTED FUEL MASS</div>
+              <div class="text-2xl font-bold font-terminal text-white mt-1" id="res_fuel_tons">230.10 t</div>
+              <div class="font-terminal text-[11px] text-brand-textMuted mt-0.5" id="res_fuel_kg">230,097 kg</div>
+            </div>
+
+            <div class="b-panel p-4">
+              <div class="font-terminal text-[10px] text-brand-muted uppercase">VOYAGE BUNKER COST</div>
+              <div class="text-2xl font-bold font-terminal text-white mt-1" id="res_cost_usd">$184,078</div>
+              <div class="font-terminal text-[11px] text-brand-textMuted mt-0.5" id="res_cost_tax">+$36,816 Carbon Tax</div>
+            </div>
+
+            <div class="b-panel p-4">
+              <div class="font-terminal text-[10px] text-brand-muted uppercase">NET TRIP EXPENSE</div>
+              <div class="text-2xl font-bold font-terminal text-white mt-1" id="res_total_usd">$220,893</div>
+              <div class="font-terminal text-[11px] text-brand-textMuted mt-0.5">Fuel + Tax Liability</div>
+            </div>
+
+            <div class="b-panel p-4">
+              <div class="font-terminal text-[10px] text-brand-muted uppercase">LIFECYCLE GHG (WTW)</div>
+              <div class="text-2xl font-bold font-terminal text-white mt-1" id="res_co2_tons">736.31 t</div>
+              <div class="font-terminal text-[11px] text-brand-textMuted mt-0.5" id="res_co2_kg">736,311 kg CO2e</div>
+            </div>
+
+            <div class="b-panel p-4">
+              <div class="font-terminal text-[10px] text-brand-muted uppercase">IMO CII RATING</div>
+              <div class="flex items-center gap-2 mt-1">
+                <span id="res_cii_grade" class="px-2 py-0.5 bg-white text-black font-terminal font-bold text-sm">C</span>
+                <span class="text-xl font-bold font-terminal text-white" id="res_cii_val">7.456</span>
+              </div>
+              <div class="font-terminal text-[10px] text-brand-textMuted mt-0.5">gCO2 / (DWT · nm)</div>
+            </div>
+
+            <div class="b-panel p-4">
+              <div class="font-terminal text-[10px] text-brand-muted uppercase">HYDRODYNAMIC POWER</div>
+              <div class="text-2xl font-bold font-terminal text-white mt-1" id="res_prop_power">6,303 kW</div>
+              <div class="font-terminal text-[11px] text-brand-textMuted mt-0.5" id="res_disp">Displ: 37,000 t</div>
+            </div>
+
+          </div>
+
+          <!-- Quantum State Telemetry Monitor -->
+          <div class="b-panel p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-brand-border pb-2">
+              <div class="font-terminal text-xs font-bold text-white uppercase tracking-wider">
+                Quantum State Vector &amp; Angle Encoding Monitor
+              </div>
+              <div class="font-terminal text-[10px] text-brand-muted">
+                6-QUBIT ANGLE MAP: θ ∈ [0.1π, 0.9π]
+              </div>
+            </div>
+
+            <!-- Qubit Angles Display -->
+            <div class="grid grid-cols-2 sm:grid-cols-6 gap-2" id="qubitAngleContainer">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <div class="p-3 bg-black border border-brand-border font-terminal text-xs space-y-2">
+              <div class="flex items-center justify-between text-brand-muted text-[11px]">
+                <span>CIRCUIT ARCHITECTURE:</span>
+                <span class="text-white">Entangled Circular CNOT Ring + Multi-Qubit Non-Linear Phase Modulation</span>
+              </div>
+              <div class="flex items-center justify-between text-brand-muted text-[11px]">
+                <span>HILBERT SPACE DIMENSION:</span>
+                <span class="text-white">2^6 = 64 Orthogonal Quantum States</span>
+              </div>
+              <div class="flex items-center justify-between text-brand-muted text-[11px]">
+                <span>PHYSICS BASELINE COMPARISON:</span>
+                <span id="res_physics_compare" class="text-white">Admiralty V³ Baseline: 36.4 t vs HQCKL: 230.1 t</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Sensitivity & Telemetry Summary -->
+          <div class="b-panel p-5 space-y-3">
+            <div class="font-terminal text-xs font-bold text-white uppercase tracking-wider border-b border-brand-border pb-2">
+              Physical &amp; Thermodynamic Feature Attribution
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 font-terminal text-xs">
+              <div>
+                <span class="text-brand-muted block text-[10px]">ENERGY DENSITY (LHV):</span>
+                <span class="text-white font-bold" id="res_lhv">49.2 MJ/kg</span>
+              </div>
+              <div>
+                <span class="text-brand-muted block text-[10px]">WTW GHG FACTOR:</span>
+                <span class="text-white font-bold" id="res_wtw">3.20 kg CO2/kg</span>
+              </div>
+              <div>
+                <span class="text-brand-muted block text-[10px]">BUNKER COMMODITY PRICE:</span>
+                <span class="text-white font-bold" id="res_bunker_price">$800 / ton</span>
+              </div>
+              <div>
+                <span class="text-brand-muted block text-[10px]">PREDICTION ENGINE:</span>
+                <span class="text-white font-bold">Hybrid HQCKL</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 2: SCIENTIFIC BENCHMARKS & QUANTUM ADVANTAGE -->
+    <!-- ======================================================================= -->
+    <section id="section-benchmarks" class="hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-border pb-4 gap-2">
+        <div>
+          <div class="font-terminal text-xs text-brand-muted tracking-widest">MODULE 02 // RIGOROUS BENCHMARK EVALUATION</div>
+          <h1 class="text-lg font-bold text-white tracking-tight uppercase mt-0.5">Quantum vs. Classical Comparative Benchmark</h1>
+        </div>
+        <div class="font-terminal text-xs text-brand-muted">
+          SAMPLE SPLIT: <strong class="text-white">1,200 TRAIN / 400 TEST</strong> // 5-FOLD VERIFIED
+        </div>
+      </div>
+
+      <!-- Comprehensive Benchmark Table -->
+      <div class="b-panel overflow-hidden">
+        <div class="p-4 border-b border-brand-border flex items-center justify-between">
+          <span class="font-terminal text-xs font-bold text-white uppercase">Empirical Model Performance Evaluation Matrix</span>
+          <span class="font-terminal text-[10px] text-brand-muted">TARGET: OBSERVED_FUEL_CONSUMED_KG</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left font-terminal text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-brand-border bg-brand-surface text-brand-muted">
+                <th class="py-3 px-4 uppercase">Architecture / Model</th>
+                <th class="py-3 px-4 uppercase text-right">R² Score</th>
+                <th class="py-3 px-4 uppercase text-right">MAE (kg)</th>
+                <th class="py-3 px-4 uppercase text-right">RMSE (kg)</th>
+                <th class="py-3 px-4 uppercase text-right">MAPE (%)</th>
+                <th class="py-3 px-4 uppercase text-right">Train Time (s)</th>
+                <th class="py-3 px-4 uppercase text-right">Latency (ms)</th>
+                <th class="py-3 px-4 uppercase text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="benchmarkTableBody" class="divide-y divide-brand-border">
+              <!-- Filled dynamically from API -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Comparative Graphs: Multiple Dimensions -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Graph 1: R2 & Relative Accuracy -->
+        <div class="b-panel p-5 space-y-3">
+          <div class="flex items-center justify-between border-b border-brand-border pb-2">
+            <span class="font-terminal text-xs font-bold text-white uppercase">Variance Explained (R² Metric Comparison)</span>
+            <span class="font-terminal text-[10px] text-brand-muted">HIGHER = SUPERIOR</span>
+          </div>
+          <div class="h-64">
+            <canvas id="chartR2"></canvas>
+          </div>
+        </div>
+
+        <!-- Graph 2: MAE & Error Comparison -->
+        <div class="b-panel p-5 space-y-3">
+          <div class="flex items-center justify-between border-b border-brand-border pb-2">
+            <span class="font-terminal text-xs font-bold text-white uppercase">Prediction Error (MAE Metric Comparison in Tons)</span>
+            <span class="font-terminal text-[10px] text-brand-muted">LOWER = SUPERIOR</span>
+          </div>
+          <div class="h-64">
+            <canvas id="chartMAE"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- THE CORE EXPLANATION: WHY QUANTUM HYBRID IS BETTER -->
+      <div class="b-panel p-6 space-y-5">
+        <div class="border-b border-brand-border pb-3 flex items-center justify-between">
+          <h2 class="text-sm font-bold font-terminal text-white uppercase tracking-wider">
+            Scientific Deep-Dive: Why the Hybrid Quantum-Classical (HQCKL) Approach is Superior
+          </h2>
+          <span class="font-terminal text-[10px] text-brand-muted">MATHEMATICAL &amp; ARCHITECTURAL JUSTIFICATION</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-terminal text-xs leading-relaxed">
+          
+          <div class="border border-brand-border p-4 space-y-2 bg-black">
+            <div class="text-white font-bold uppercase text-[11px] border-b border-brand-border pb-1">
+              01 // 64-Dimensional Hilbert Feature Mapping
+            </div>
+            <p class="text-brand-textMuted">
+              Maritime fuel consumption follows non-linear cubic laws (<span class="text-white font-mono">P ∝ V³ · Δ^(2/3)</span>), load-dependent SFOC curves, and discontinuous fuel switching thermodynamics. Classical linear regression fails completely (<span class="text-white font-mono">R² = 0.7245, MAPE = 372%</span>). 
+            </p>
+            <p class="text-brand-textMuted">
+              By projecting 20 physical descriptors into an entangled 6-qubit Hilbert space (<span class="text-white font-mono">dim = 2⁶ = 64</span>), the quantum kernel resolves complex hydrodynamic interaction boundaries that classical hyperplanes cannot separate.
+            </p>
+          </div>
+
+          <div class="border border-brand-border p-4 space-y-2 bg-black">
+            <div class="text-white font-bold uppercase text-[11px] border-b border-brand-border pb-1">
+              02 // Noise Regularization over Pure Quantum
+            </div>
+            <p class="text-brand-textMuted">
+              Pure Quantum Kernel Machines (<span class="text-white font-mono">Q-SVR, R² = 0.8685, MAPE = 38.8%</span>) suffer from barren plateaus, kernel concentration, and sensitivity to sensor noise in maritime telemetry.
+            </p>
+            <p class="text-brand-textMuted">
+              Our <strong>HQCKL architecture</strong> blends 60% quantum state fidelity overlap with 40% classical Gaussian RBF regularization: <span class="text-white font-mono">K_hybrid = β·K_quantum + (1-β)·K_rbf</span>. This achieves <strong class="text-white font-mono">R² = 0.9291</strong> while completely neutralizing quantum variance instability.
+            </p>
+          </div>
+
+          <div class="border border-brand-border p-4 space-y-2 bg-black">
+            <div class="text-white font-bold uppercase text-[11px] border-b border-brand-border pb-1">
+              03 // Real-Time Onboard Inference Speed
+            </div>
+            <p class="text-brand-textMuted">
+              While classical ensemble algorithms like Random Forest (<span class="text-white font-mono">15.7 MB model weights</span>) require heavy tree traversal, the trained HQCKL model executes inference in <strong class="text-white font-mono">5.66 milliseconds</strong>.
+            </p>
+            <p class="text-brand-textMuted">
+              This sub-10ms latency enables real-time edge integration with shipboard ECDIS (Electronic Chart Display) and bridge autopilot systems for live throttle adjustments during sea passages.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Comparative Summary Box -->
+        <div class="p-4 border border-brand-border bg-brand-surface font-terminal text-xs">
+          <div class="text-white font-bold uppercase mb-2">SUMMARY: THE QUANTUM ADVANTAGE IN GREEN FLEET MANAGEMENT</div>
+          <p class="text-brand-textMuted leading-relaxed">
+            Unlike classical gradient boosting or random forests which treat voyages as disconnected tabular points, the quantum-inspired kernel constructs a continuous geometric representation of energy efficiency across multi-fuel topologies. In green transition scenarios where real-world operational data for zero-carbon fuels (Green Ammonia, Liquid Hydrogen) is scarce, the quantum state ansatz generalizes physically consistent propulsion predictions without overfitting to legacy heavy fuel oil records.
+          </p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 3: IMO REGULATORY TRAJECTORY & COMPLIANCE TABLE -->
+    <!-- ======================================================================= -->
+    <section id="section-imo" class="hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-border pb-4 gap-2">
+        <div>
+          <div class="font-terminal text-xs text-brand-muted tracking-widest">MODULE 03 // GLOBAL MARITIME GOVERNANCE</div>
+          <h1 class="text-lg font-bold text-white tracking-tight uppercase mt-0.5">IMO Decarbonization Mandates &amp; CII Classification</h1>
+        </div>
+        <div class="font-terminal text-xs text-brand-muted">
+          FRAMEWORK: <strong class="text-white">MEPC.377(80) &amp; FUELEU MARITIME REGULATION</strong>
+        </div>
+      </div>
+
+      <!-- IMO Regulatory Trajectory Table -->
+      <div class="b-panel overflow-hidden">
+        <div class="p-4 border-b border-brand-border flex items-center justify-between">
+          <span class="font-terminal text-xs font-bold text-white uppercase">Decarbonization Trajectory (2023 - 2050 Global Roadmap)</span>
+          <span class="font-terminal text-[10px] text-brand-muted">LEGAL ENFORCEMENT HORIZONS</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left font-terminal text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-brand-border bg-brand-surface text-brand-muted">
+                <th class="py-3 px-4 uppercase">Horizon</th>
+                <th class="py-3 px-4 uppercase">Regulatory Mandate</th>
+                <th class="py-3 px-4 uppercase">Required GHG Reduction</th>
+                <th class="py-3 px-4 uppercase">FuelEU Intensity Limit</th>
+                <th class="py-3 px-4 uppercase">Financial Penalty / Sanction</th>
+                <th class="py-3 px-4 uppercase">Strategic Requirement</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-brand-border text-brand-textMuted">
+              <tr>
+                <td class="py-3 px-4 font-bold text-white">2008</td>
+                <td class="py-3 px-4 text-white">IMO Baseline Reference</td>
+                <td class="py-3 px-4">0% (Baseline Year)</td>
+                <td class="py-3 px-4">91.16 gCO2e / MJ</td>
+                <td class="py-3 px-4 text-brand-muted">N/A</td>
+                <td class="py-3 px-4">Historic emissions benchmark</td>
+              </tr>
+              <tr class="bg-brand-surface/40">
+                <td class="py-3 px-4 font-bold text-white">2023–2026</td>
+                <td class="py-3 px-4 text-white">EEXI &amp; Operational CII In-Force</td>
+                <td class="py-3 px-4 text-white font-bold">-5% to -11% (Annual -2%)</td>
+                <td class="py-3 px-4">-2% (EU MRV Cap)</td>
+                <td class="py-3 px-4">SEEMP Part III Corrective Plan</td>
+                <td class="py-3 px-4">Slow-steaming, hull cleaning, EPL</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 font-bold text-white">2030</td>
+                <td class="py-3 px-4 text-white">IMO 2030 Interim Target</td>
+                <td class="py-3 px-4 text-white font-bold">-40% Carbon Intensity</td>
+                <td class="py-3 px-4">-6.0% GHG Intensity</td>
+                <td class="py-3 px-4">€2,400 / ton VLSFO equivalent</td>
+                <td class="py-3 px-4">5-10% Zero-carbon fuel adoption</td>
+              </tr>
+              <tr class="bg-brand-surface/40">
+                <td class="py-3 px-4 font-bold text-white">2035</td>
+                <td class="py-3 px-4 text-white">FuelEU Phase II</td>
+                <td class="py-3 px-4">-55% Carbon Intensity</td>
+                <td class="py-3 px-4 text-white font-bold">-14.5% GHG Intensity</td>
+                <td class="py-3 px-4">Port docking ban for repeat offenders</td>
+                <td class="py-3 px-4">Shore power mandatory in major EU ports</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 font-bold text-white">2040</td>
+                <td class="py-3 px-4 text-white">IMO 2040 Checkpoint</td>
+                <td class="py-3 px-4 text-white font-bold">-70% to -80% Absolute GHG</td>
+                <td class="py-3 px-4">-31.0% GHG Intensity</td>
+                <td class="py-3 px-4">Carbon trading surcharge &gt; $200/t</td>
+                <td class="py-3 px-4">Commercial e-Methanol / NH3 dominance</td>
+              </tr>
+              <tr class="bg-brand-surface/40">
+                <td class="py-3 px-4 font-bold text-white">2050</td>
+                <td class="py-3 px-4 text-white">IMO 2050 Net-Zero Goal</td>
+                <td class="py-3 px-4 text-white font-bold">-100% Net-Zero Lifecycle</td>
+                <td class="py-3 px-4 text-white font-bold">-80.0% GHG Intensity</td>
+                <td class="py-3 px-4">Complete phaseout of fossil fuels</td>
+                <td class="py-3 px-4">100% Green Ammonia &amp; Hydrogen propulsion</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- IMO Carbon Intensity Indicator (CII) Rating Scale -->
+      <div class="b-panel p-6 space-y-4">
+        <div class="border-b border-brand-border pb-3 flex items-center justify-between">
+          <span class="font-terminal text-xs font-bold text-white uppercase tracking-wider">
+            Operational Carbon Intensity Indicator (CII) Rating Thresholds
+          </span>
+          <span class="font-terminal text-[10px] text-brand-muted">METRIC: GRAMS CO2 / (DWT · NM)</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 font-terminal text-xs">
+          
+          <div class="border border-brand-border p-4 bg-black space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 bg-white text-black font-bold text-xs">GRADE A</span>
+              <span class="text-brand-muted text-[10px]">MAJOR SUPERIOR</span>
+            </div>
+            <div class="text-white font-bold text-base mt-1">≤ 4.50</div>
+            <p class="text-brand-textMuted text-[11px]">
+              Exemplary efficiency. Zero penalty risk. Preferred commercial charter status.
+            </p>
+          </div>
+
+          <div class="border border-brand-border p-4 bg-black space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 border border-white text-white font-bold text-xs">GRADE B</span>
+              <span class="text-brand-muted text-[10px]">MINOR SUPERIOR</span>
+            </div>
+            <div class="text-white font-bold text-base mt-1">4.51 – 6.50</div>
+            <p class="text-brand-textMuted text-[11px]">
+              Compliant with IMO 2030 trajectory. Commercial bonus tier.
+            </p>
+          </div>
+
+          <div class="border border-brand-border p-4 bg-black space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 border border-brand-border text-brand-textMuted font-bold text-xs">GRADE C</span>
+              <span class="text-brand-muted text-[10px]">MODERATE</span>
+            </div>
+            <div class="text-white font-bold text-base mt-1">6.51 – 8.50</div>
+            <p class="text-brand-textMuted text-[11px]">
+              Baseline acceptable compliance band. Annual verification required.
+            </p>
+          </div>
+
+          <div class="border border-brand-border p-4 bg-black space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 border border-brand-border text-brand-muted font-bold text-xs">GRADE D</span>
+              <span class="text-brand-muted text-[10px]">MINOR INFERIOR</span>
+            </div>
+            <div class="text-white font-bold text-base mt-1">8.51 – 11.00</div>
+            <p class="text-brand-textMuted text-[11px]">
+              Warning status. If maintained for 3 consecutive years, SEEMP corrective plan is mandatory.
+            </p>
+          </div>
+
+          <div class="border border-brand-border p-4 bg-black space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 border border-brand-border text-brand-muted font-bold text-xs">GRADE E</span>
+              <span class="text-brand-muted text-[10px]">MAJOR INFERIOR</span>
+            </div>
+            <div class="text-white font-bold text-base mt-1">&gt; 11.00</div>
+            <p class="text-brand-textMuted text-[11px]">
+              Immediate corrective action plan required. Risk of vessel detention and flag state sanction.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 4: FLEET OPTIMIZATION & PARETO STUDIO -->
+    <!-- ======================================================================= -->
+    <section id="section-optimizer" class="hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-border pb-4 gap-2">
+        <div>
+          <div class="font-terminal text-xs text-brand-muted tracking-widest">MODULE 04 // MULTI-OBJECTIVE QUANTUM OPTIMIZATION</div>
+          <h1 class="text-lg font-bold text-white tracking-tight uppercase mt-0.5">MO-QIGA Pareto Frontier &amp; Fleet Strategy</h1>
+        </div>
+        <div class="font-terminal text-xs text-brand-muted">
+          FRONTIER: <strong class="text-white" id="paretoCountLabel">111 NON-DOMINATED SOLUTIONS</strong>
+        </div>
+      </div>
+
+      <!-- Presets & Strategic Controls -->
+      <div class="b-panel p-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <span class="font-terminal text-xs text-brand-muted uppercase mr-2">POLICY STRATEGY:</span>
+          <button class="btn-outline active" id="btn-commercial" onclick="applyPreset('commercial', this)">[A] Commercial Cost-Min</button>
+          <button class="btn-outline" id="btn-balanced" onclick="applyPreset('balanced', this)">[B] Balanced 2035 Green</button>
+          <button class="btn-outline" id="btn-netzero" onclick="applyPreset('netzero', this)">[C] Deep Net-Zero (2050)</button>
+        </div>
+        <div class="font-terminal text-xs text-brand-textMuted">
+          CLICK ANY POINT ON THE PARETO PLOT TO INSPECT ITS ROUTE DEPLOYMENT
+        </div>
+      </div>
+
+      <!-- Pareto Scatter Chart & Metrics Summary -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-8 b-panel p-5 space-y-3">
+          <div class="flex items-center justify-between border-b border-brand-border pb-2">
+            <span class="font-terminal text-xs font-bold text-white uppercase">Pareto Trade-off Frontier (Fleet Cost vs. Lifecycle CO2e)</span>
+            <span class="font-terminal text-[10px] text-brand-muted">HOVER / CLICK TO SELECT SOLUTION</span>
+          </div>
+          <div class="h-80">
+            <canvas id="chartPareto"></canvas>
+          </div>
+        </div>
+
+        <div class="lg:col-span-4 b-panel p-5 space-y-4">
+          <div class="font-terminal text-xs font-bold text-white uppercase border-b border-brand-border pb-2">
+            Selected Frontier Solution KPIs
+          </div>
+
+          <div class="space-y-3 font-terminal text-xs">
+            <div class="p-3 bg-black border border-brand-border">
+              <span class="text-brand-muted text-[10px] block">TOTAL ANNUAL FLEET COST</span>
+              <span class="text-xl font-bold text-white" id="sol_cost">$10.29M</span>
+              <span class="text-brand-textMuted text-[10px] block mt-0.5" id="sol_cost_delta">-9.5% vs Baseline</span>
+            </div>
+
+            <div class="p-3 bg-black border border-brand-border">
+              <span class="text-brand-muted text-[10px] block">FLEET LIFECYCLE EMISSIONS</span>
+              <span class="text-xl font-bold text-white" id="sol_emiss">23,851 t CO2e</span>
+              <span class="text-brand-textMuted text-[10px] block mt-0.5" id="sol_emiss_delta">-48.7% vs Baseline</span>
+            </div>
+
+            <div class="p-3 bg-black border border-brand-border">
+              <span class="text-brand-muted text-[10px] block">SCHEDULE DELAY RISK</span>
+              <span class="text-xl font-bold text-white" id="sol_delay">147.9 hrs</span>
+              <span class="text-brand-textMuted text-[10px] block mt-0.5">Across 10 Global Corridors</span>
+            </div>
+
+            <div class="p-3 bg-black border border-brand-border flex items-center justify-between">
+              <div>
+                <span class="text-brand-muted text-[10px] block">ALGORITHM COVERAGE</span>
+                <span class="text-xs font-bold text-white">Hypervolume: 150,601</span>
+              </div>
+              <span class="px-2 py-0.5 bg-white text-black font-bold text-xs">MO-QIGA</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Corridor Deployment Plan Table -->
+      <div class="b-panel overflow-hidden">
+        <div class="p-4 border-b border-brand-border flex items-center justify-between">
+          <span class="font-terminal text-xs font-bold text-white uppercase">Corridor Deployment Allocation (10 Global Corridors)</span>
+          <span class="font-terminal text-[10px] text-brand-muted">SOLUTIONS DERIVED VIA QUANTUM GATE ROTATIONS</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left font-terminal text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-brand-border bg-brand-surface text-brand-muted">
+                <th class="py-3 px-4 uppercase">Trade Corridor</th>
+                <th class="py-3 px-4 uppercase text-right">Distance (nm)</th>
+                <th class="py-3 px-4 uppercase">Assigned Vessel Class</th>
+                <th class="py-3 px-4 uppercase">Selected Fuel</th>
+                <th class="py-3 px-4 uppercase text-right">Opt. Speed (kn)</th>
+                <th class="py-3 px-4 uppercase text-center">Cold-Ironing (Shore Power)</th>
+              </tr>
+            </thead>
+            <tbody id="optimizerRouteTable" class="divide-y divide-brand-border text-brand-textMuted">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 5: GEOSPATIAL CORRIDORS (SECONDARY VIEW) -->
+    <!-- ======================================================================= -->
+    <section id="section-corridors" class="hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-border pb-4 gap-2">
+        <div>
+          <div class="font-terminal text-xs text-brand-muted tracking-widest">MODULE 05 // GEOSPATIAL FLEET TRACKING</div>
+          <h1 class="text-lg font-bold text-white tracking-tight uppercase mt-0.5">International Shipping Corridor Network</h1>
+        </div>
+        <div class="font-terminal text-xs text-brand-muted">
+          10 GLOBAL TRADE LANES // MONOCHROME RADAR PROJECTION
+        </div>
+      </div>
+
+      <div class="b-panel p-4 space-y-4">
+        <div id="map"></div>
+        <div class="p-3 bg-black border border-brand-border font-terminal text-xs flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-6">
+            <span class="flex items-center gap-2">
+              <span class="w-3 h-0.5 bg-white inline-block"></span> <span>CONTAINER ROUTE</span>
+            </span>
+            <span class="flex items-center gap-2">
+              <span class="w-3 h-0.5 bg-brand-muted inline-block"></span> <span>BULK / TANKER ROUTE</span>
+            </span>
+            <span class="flex items-center gap-2">
+              <span class="w-2 h-2 border border-white rounded-full inline-block"></span> <span>BUNKERING HUB</span>
+            </span>
+          </div>
+          <span class="text-brand-muted">PROJECTION: MERCATOR (WGS 84)</span>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- FOOTER -->
+  <!-- ========================================================================= -->
+  <footer class="border-t border-brand-border bg-black py-4 px-6 mt-12">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between font-terminal text-xs text-brand-muted gap-2">
+      <div>
+        SMART INDIA HACKATHON 2025 // QUANTUM-INSPIRED GREEN FLEET MANAGEMENT
+      </div>
+      <div>
+        BACKEND: <span class="text-white">FASTAPI</span> // PENNYLANE 6-QUBIT CIRCUIT
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- APPLICATION LOGIC (HIGH DENSITY TELEMETRY JAVASCRIPT) -->
+  <!-- ========================================================================= -->
+  <script>
+    const API = '';
+    let paretoData = [];
+    let benchmarkData = null;
+    let currentSolution = null;
+    let chartPareto = null;
+    let chartR2 = null;
+    let chartMAE = null;
+    let map = null;
+    let mapInitialized = false;
+
+    // Port coordinates
+    const PORTS = {
+      'Shanghai':     [31.2, 121.5],  'Rotterdam':    [51.9, 4.5],
+      'Shenzhen':     [22.5, 114.1],  'Los Angeles':  [33.7, -118.2],
+      'Singapore':    [1.3, 103.8],   'Port Klang':   [3.0, 101.4],
+      'Hamburg':      [53.5, 10.0],   'New York':     [40.7, -74.0],
+      'Dubai':        [25.2, 55.3],   'Mumbai':       [19.1, 72.9],
+      'Port Hedland': [-20.3, 118.6], 'Qingdao':      [36.1, 120.4],
+      'Santos':       [-23.9, -46.3], 'Busan':        [35.1, 129.0],
+      'Tokyo':        [35.7, 139.7],  'Ras Tanura':   [26.6, 50.2],
+      'Houston':      [29.8, -95.0],  'Antwerp':      [51.2, 4.4]
+    };
+
+    const ROUTE_DATA = [
+      { name: 'Shanghai → Rotterdam (Suez)', origin: 'Shanghai', dest: 'Rotterdam', dist: 11800 },
+      { name: 'Shenzhen → Los Angeles (Transpacific)', origin: 'Shenzhen', dest: 'Los Angeles', dist: 6400 },
+      { name: 'Singapore → Port Klang (Feeder)', origin: 'Singapore', dest: 'Port Klang', dist: 170 },
+      { name: 'Hamburg → New York (Transatlantic)', origin: 'Hamburg', dest: 'New York', dist: 3700 },
+      { name: 'Dubai → Mumbai (Arabian Gulf)', origin: 'Dubai', dest: 'Mumbai', dist: 1200 },
+      { name: 'Port Hedland → Qingdao (Ore Bulk)', origin: 'Port Hedland', dest: 'Qingdao', dist: 4500 },
+      { name: 'Santos → Rotterdam (Agri Bulk)', origin: 'Santos', dest: 'Rotterdam', dist: 5700 },
+      { name: 'Ras Tanura → Singapore (Crude Tanker)', origin: 'Ras Tanura', dest: 'Singapore', dist: 3600 },
+      { name: 'Busan → Tokyo (Regional Feeder)', origin: 'Busan', dest: 'Tokyo', dist: 620 },
+      { name: 'Houston → Antwerp (Chemical Tanker)', origin: 'Houston', dest: 'Antwerp', dist: 5000 }
+    ];
+
+    // Live Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('liveClock').textContent = now.toISOString().substring(11, 19) + 'Z';
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Input labels updater
+    function updateVal(type, val, unit) {
+      const el = document.getElementById(`val_${type}`);
+      if (el) el.textContent = `${val} ${unit}`;
+    }
+
+    // Tab Navigation
+    function switchSection(sectionId, btn) {
+      document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+      const target = document.getElementById(`section-${sectionId}`);
+      if (target) target.classList.remove('hidden');
+
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      if (sectionId === 'corridors' && !mapInitialized) {
+        setTimeout(initMap, 100);
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // PREDICTOR EXECUTION
+    // -------------------------------------------------------------------------
+    async function triggerPredict() {
+      const vessel = document.getElementById('p_vessel').value;
+      const fuel = document.getElementById('p_fuel').value;
+      const speed = parseFloat(document.getElementById('p_speed').value);
+      const dist = parseFloat(document.getElementById('p_dist').value);
+      const load = parseFloat(document.getElementById('p_load').value);
+      const wave = parseFloat(document.getElementById('p_wave').value);
+      const tax = parseFloat(document.getElementById('p_tax').value);
+
+      const payload = {
+        vessel_class: vessel,
+        fuel_type: fuel,
+        speed_knots: speed,
+        distance_nm: dist,
+        cargo_load_factor: load,
+        wave_height_m: wave,
+        carbon_tax_usd_ton: tax
+      };
+
+      try {
+        const res = await fetch(`${API}/api/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        renderPredictionResults(data);
+      } catch (err) {
+        console.error('Prediction failed', err);
+      }
+    }
+
+    function renderPredictionResults(d) {
+      document.getElementById('res_fuel_tons').textContent = `${d.fuel_consumed_tons.toFixed(2)} t`;
+      document.getElementById('res_fuel_kg').textContent = `${Math.round(d.fuel_consumed_kg).toLocaleString()} kg`;
+      document.getElementById('res_cost_usd').textContent = `$${Math.round(d.cost_usd).toLocaleString()}`;
+      document.getElementById('res_cost_tax').textContent = `+$${Math.round(d.carbon_cost_usd).toLocaleString()} Carbon Tax`;
+      document.getElementById('res_total_usd').textContent = `$${Math.round(d.total_cost_usd).toLocaleString()}`;
+      document.getElementById('res_co2_tons').textContent = `${d.emissions_tons_co2e.toFixed(2)} t`;
+      document.getElementById('res_co2_kg').textContent = `${Math.round(d.emissions_kg_co2e).toLocaleString()} kg CO2e`;
+      document.getElementById('res_cii_val').textContent = d.cii_rating_g_co2_dwt_nm.toFixed(3);
+      document.getElementById('res_prop_power').textContent = `${d.propulsion_power_kw.toLocaleString()} kW`;
+      document.getElementById('res_disp').textContent = `Displ: ${d.displacement_ton.toLocaleString()} t`;
+
+      const ciiBadge = document.getElementById('res_cii_grade');
+      ciiBadge.textContent = d.cii_grade;
+
+      document.getElementById('res_lhv').textContent = `${d.fuel_lhv_mj_per_kg} MJ/kg`;
+      document.getElementById('res_wtw').textContent = `${d.fuel_wtw_factor} kg/kg`;
+      document.getElementById('res_bunker_price').textContent = `$${d.fuel_cost_per_ton} / ton`;
+      document.getElementById('res_physics_compare').textContent = 
+        `Admiralty V³ Law Baseline: ${(d.admiralty_baseline_kg/1000).toFixed(1)} t vs HQCKL: ${d.fuel_consumed_tons.toFixed(1)} t`;
+
+      // Render Qubit Angles
+      const qContainer = document.getElementById('qubitAngleContainer');
+      qContainer.innerHTML = '';
+      if (d.quantum_angles && d.quantum_angles.length) {
+        d.quantum_angles.forEach((angle, idx) => {
+          const pct = Math.min(100, Math.max(0, ((angle - 0.314) / (2.827 - 0.314)) * 100));
+          const col = document.createElement('div');
+          col.className = 'border border-brand-border p-2 bg-black text-center';
+          col.innerHTML = `
+            <div class="font-terminal text-[10px] text-brand-muted">QUBIT ${idx}</div>
+            <div class="font-terminal text-xs font-bold text-white mt-0.5">${angle.toFixed(4)}</div>
+            <div class="w-full bg-brand-border h-1 mt-1.5 overflow-hidden">
+              <div class="bg-white h-full" style="width:${pct}%"></div>
+            </div>
+            <div class="font-terminal text-[9px] text-brand-muted mt-1">${(angle * 180 / Math.PI).toFixed(0)}°</div>
+          `;
+          qContainer.appendChild(col);
+        });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // BENCHMARK INITIALIZATION
+    // -------------------------------------------------------------------------
+    async function initBenchmarks() {
+      try {
+        const res = await fetch(`${API}/api/benchmark`);
+        benchmarkData = await res.json();
+        renderBenchmarkTable(benchmarkData.models);
+        renderBenchmarkCharts(benchmarkData.models);
+      } catch (err) {
+        console.error('Benchmark fetch failed', err);
+      }
+    }
+
+    function renderBenchmarkTable(models) {
+      const tbody = document.getElementById('benchmarkTableBody');
+      tbody.innerHTML = '';
+
+      models.forEach(m => {
+        const isQuantum = m.model_name.includes('Hybrid');
+        const isPureQ = m.model_name.includes('Pure Quantum');
+        const isBaseline = m.model_name.includes('Linear');
+
+        const tr = document.createElement('tr');
+        tr.className = isQuantum ? 'bg-white/5 font-semibold text-white' : 'text-brand-textMuted hover:bg-brand-surface';
+        
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-bold ${isQuantum ? 'text-white' : ''}">
+            ${isQuantum ? '★ ' : ''}${m.model_name}
+          </td>
+          <td class="py-3 px-4 text-right font-bold ${m.r2_score > 0.90 ? 'text-white' : 'text-brand-muted'}">
+            ${m.r2_score.toFixed(4)}
+          </td>
+          <td class="py-3 px-4 text-right">${Math.round(m.mae_kg).toLocaleString()}</td>
+          <td class="py-3 px-4 text-right">${Math.round(m.rmse_kg).toLocaleString()}</td>
+          <td class="py-3 px-4 text-right ${m.mape_pct > 100 ? 'text-brand-muted line-through' : ''}">${m.mape_pct.toFixed(2)}%</td>
+          <td class="py-3 px-4 text-right text-brand-muted">${m.train_time_sec.toFixed(3)}s</td>
+          <td class="py-3 px-4 text-right font-bold text-white">${m.inference_latency_ms.toFixed(3)} ms</td>
+          <td class="py-3 px-4 text-center">
+            ${isQuantum ? '<span class="px-1.5 py-0.5 bg-white text-black font-bold text-[10px]">OPTIMAL</span>' : 
+              isBaseline ? '<span class="px-1.5 py-0.5 border border-brand-border text-brand-muted text-[10px]">BASELINE</span>' :
+              '<span class="px-1.5 py-0.5 border border-brand-border text-brand-textMuted text-[10px]">BENCH</span>'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderBenchmarkCharts(models) {
+      const labels = models.map(m => m.model_name.replace(' Regressor', '').replace(' (HQCKL)', ''));
+      const r2Values = models.map(m => m.r2_score);
+      const maeValues = models.map(m => (m.mae_kg / 1000).toFixed(1));
+
+      // 1. R2 Chart
+      const ctx1 = document.getElementById('chartR2').getContext('2d');
+      if (chartR2) chartR2.destroy();
+      chartR2 = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'R² Score',
+            data: r2Values,
+            backgroundColor: models.map(m => m.model_name.includes('Hybrid') ? '#ffffff' : '#3f3f46'),
+            borderColor: '#ffffff',
+            borderWidth: 1,
+            borderRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` R² Score: ${ctx.parsed.y.toFixed(4)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#a1a1aa', font: { family: 'JetBrains Mono', size: 9 } },
+              grid: { display: false }
+            },
+            y: {
+              min: 0.6, max: 1.0,
+              ticks: { color: '#71717a', font: { family: 'JetBrains Mono', size: 9 } },
+              grid: { color: '#27272a' }
+            }
+          }
+        }
+      });
+
+      // 2. MAE Chart
+      const ctx2 = document.getElementById('chartMAE').getContext('2d');
+      if (chartMAE) chartMAE.destroy();
+      chartMAE = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'MAE (Tons)',
+            data: maeValues,
+            backgroundColor: models.map(m => m.model_name.includes('Hybrid') ? '#ffffff' : '#27272a'),
+            borderColor: '#71717a',
+            borderWidth: 1,
+            borderRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` Mean Abs Error: ${ctx.parsed.y} Tons`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#a1a1aa', font: { family: 'JetBrains Mono', size: 9 } },
+              grid: { display: false }
+            },
+            y: {
+              ticks: { color: '#71717a', font: { family: 'JetBrains Mono', size: 9 } },
+              grid: { color: '#27272a' }
+            }
+          }
+        }
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // PARETO & OPTIMIZATION
+    // -------------------------------------------------------------------------
+    async function initPareto() {
+      try {
+        const res = await fetch(`${API}/api/pareto`);
+        paretoData = await res.json();
+        document.getElementById('paretoCountLabel').textContent = `${paretoData.length} NON-DOMINATED SOLUTIONS`;
+        renderParetoScatter(paretoData);
+        if (paretoData.length > 0) {
+          selectSolution(paretoData[0]);
+        }
+      } catch (err) {
+        console.error('Pareto fetch failed', err);
+      }
+    }
+
+    function renderParetoScatter(data) {
+      const ctx = document.getElementById('chartPareto').getContext('2d');
+      if (chartPareto) chartPareto.destroy();
+
+      const scatterPoints = data.map((d, i) => ({
+        x: d.cost_usd / 1e6,
+        y: d.emissions_kg / 1e6,
+        index: i
+      }));
+
+      chartPareto = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'MO-QIGA Non-Dominated Solutions',
+            data: scatterPoints,
+            backgroundColor: '#ffffff',
+            borderColor: '#000000',
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => [
+                  ` Cost: $${ctx.parsed.x.toFixed(2)}M USD`,
+                  ` CO2e: ${ctx.parsed.y.toFixed(2)}M kg`
+                ]
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'ANNUAL FLEET COST ($ MILLIONS)', color: '#71717a', font: { family: 'JetBrains Mono', size: 10 } },
+              ticks: { color: '#a1a1aa', font: { family: 'JetBrains Mono', size: 9 } },
+              grid: { color: '#27272a' }
+            },
+            y: {
+              title: { display: true, text: 'LIFECYCLE EMISSIONS (MILLION KG CO2E)', color: '#71717a', font: { family: 'JetBrains Mono', size: 10 } },
+              ticks: { color: '#a1a1aa', font: { family: 'JetBrains Mono', size: 9 } },
+              grid: { color: '#27272a' }
+            }
+          },
+          onClick: (evt, elements) => {
+            if (elements.length > 0) {
+              const idx = elements[0].index;
+              selectSolution(paretoData[idx]);
+            }
+          }
+        }
+      });
+    }
+
+    function selectSolution(sol) {
+      currentSolution = sol;
+      const baseCost = 11372358.95;
+      const baseEmiss = 46457224.30;
+
+      const cDelta = ((sol.cost_usd - baseCost) / baseCost * 100).toFixed(1);
+      const eDelta = ((sol.emissions_kg - baseEmiss) / baseEmiss * 100).toFixed(1);
+
+      document.getElementById('sol_cost').textContent = `$${(sol.cost_usd / 1e6).toFixed(2)}M`;
+      document.getElementById('sol_cost_delta').textContent = `${cDelta > 0 ? '+' : ''}${cDelta}% vs Baseline ($11.37M)`;
+      document.getElementById('sol_emiss').textContent = `${Math.round(sol.emissions_kg / 1000).toLocaleString()} t CO2e`;
+      document.getElementById('sol_emiss_delta').textContent = `${eDelta > 0 ? '+' : ''}${eDelta}% vs Baseline (46,457 t)`;
+      document.getElementById('sol_delay').textContent = `${(sol.delay_hours || 0).toFixed(1)} hrs`;
+
+      renderOptimizerRouteTable(sol.deployment);
+      if (mapInitialized) {
+        updateMapRoutes(sol.deployment);
+      }
+    }
+
+    function applyPreset(preset, btn) {
+      document.querySelectorAll('.btn-outline').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      if (!paretoData || paretoData.length === 0) return;
+
+      let chosen = paretoData[0];
+      if (preset === 'commercial') {
+        chosen = paretoData.reduce((prev, curr) => curr.cost_usd < prev.cost_usd ? curr : prev);
+      } else if (preset === 'netzero') {
+        chosen = paretoData.reduce((prev, curr) => curr.emissions_kg < prev.emissions_kg ? curr : prev);
+      } else if (preset === 'balanced') {
+        const maxC = Math.max(...paretoData.map(x => x.cost_usd));
+        const maxE = Math.max(...paretoData.map(x => x.emissions_kg));
+        chosen = paretoData.reduce((prev, curr) => {
+          const sPrev = (prev.cost_usd / maxC) + (prev.emissions_kg / maxE);
+          const sCurr = (curr.cost_usd / maxC) + (curr.emissions_kg / maxE);
+          return sCurr < sPrev ? curr : prev;
+        });
+      }
+      selectSolution(chosen);
+    }
+
+    function renderOptimizerRouteTable(deployment) {
+      const tbody = document.getElementById('optimizerRouteTable');
+      tbody.innerHTML = '';
+
+      if (!deployment || deployment.length === 0) return;
+
+      deployment.forEach((dep, idx) => {
+        const route = ROUTE_DATA[idx] || { name: `Corridor ${idx}`, dist: 4000 };
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-brand-surface';
+        tr.innerHTML = `
+          <td class="py-2.5 px-4 font-bold text-white">${route.name}</td>
+          <td class="py-2.5 px-4 text-right">${route.dist.toLocaleString()}</td>
+          <td class="py-2.5 px-4">${dep.vessel_class}</td>
+          <td class="py-2.5 px-4">
+            <span class="px-2 py-0.5 border border-white text-white text-[10px] font-bold">${dep.fuel_type}</span>
+          </td>
+          <td class="py-2.5 px-4 text-right font-bold text-white">${dep.speed_knots.toFixed(1)}</td>
+          <td class="py-2.5 px-4 text-center">
+            ${dep.use_shore_power ? '<span class="text-white font-bold">CONNECTED (AMP)</span>' : '<span class="text-brand-muted">—</span>'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // GEOSPATIAL MAP (SECONDARY SECTION)
+    // -------------------------------------------------------------------------
+    let routePolylines = [];
+
+    function initMap() {
+      if (mapInitialized) return;
+      map = L.map('map', { zoomControl: true, attributionControl: false }).setView([22, 20], 2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 8, minZoom: 1 }).addTo(map);
+
+      Object.entries(PORTS).forEach(([portName, latlng]) => {
+        L.circleMarker(latlng, {
+          radius: 4,
+          color: '#ffffff',
+          fillColor: '#000000',
+          fillOpacity: 1,
+          weight: 2
+        }).bindTooltip(`<span style="font-family:'JetBrains Mono';font-size:10px;font-weight:700;">${portName.toUpperCase()}</span>`).addTo(map);
+      });
+
+      mapInitialized = true;
+      if (currentSolution && currentSolution.deployment) {
+        updateMapRoutes(currentSolution.deployment);
+      }
+    }
+
+    function updateMapRoutes(deployment) {
+      if (!map) return;
+      routePolylines.forEach(l => map.removeLayer(l));
+      routePolylines = [];
+
+      ROUTE_DATA.forEach((r, idx) => {
+        const dep = deployment ? deployment[idx] : null;
+        const originLL = PORTS[r.origin];
+        const destLL = PORTS[r.dest];
+        if (!originLL || !destLL) return;
+
+        const isGreen = dep && (dep.fuel_type === 'Methanol' || dep.fuel_type === 'Ammonia' || dep.fuel_type === 'Hydrogen');
+        const line = L.polyline([originLL, destLL], {
+          color: isGreen ? '#ffffff' : '#71717a',
+          weight: isGreen ? 2.5 : 1.5,
+          opacity: 0.85,
+          dashArray: isGreen ? null : '4, 4'
+        }).addTo(map);
+
+        line.bindTooltip(`
+          <div style="font-family:'JetBrains Mono';font-size:10px;">
+            <strong>${r.name}</strong><br/>
+            FUEL: <b>${dep ? dep.fuel_type : 'HFO'}</b> // SPEED: ${dep ? dep.speed_knots : 14} kn
+          </div>
+        `, { sticky: true });
+
+        routePolylines.push(line);
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // BOOTSTRAP INITIALIZATION
+    // -------------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Check health
+      try {
+        const r = await fetch(`${API}/api/health`);
+        const d = await r.json();
+        document.getElementById('sysStatusText').textContent = d.status === 'ok' ? 'ONLINE // HQCKL_LOADED' : 'WARN // CHECK';
+      } catch (err) {
+        document.getElementById('sysStatusText').textContent = 'OFFLINE';
+      }
+
+      await Promise.all([
+        triggerPredict(),
+        initBenchmarks(),
+        initPareto()
+      ]);
+    });
+  </script>
+</body>
+</html>

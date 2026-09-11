@@ -1,0 +1,66 @@
+{
+  "experiment": "SIH Quantum vs Classical Maritime Fuel Prediction Benchmark",
+  "training_samples": 1200,
+  "test_samples": 400,
+  "quantum_features": {
+    "n_qubits": 6,
+    "ansatz": "Entangled Circular CNOT + Non-Linear Phase Modulation",
+    "hilbert_dimension": 64
+  },
+  "models": [
+    {
+      "model_name": "Hybrid Quantum-Classical (HQCKL)",
+      "r2_score": 0.9291,
+      "mae_kg": 184048.9,
+      "rmse_kg": 391096.4,
+      "mape_pct": 24.2,
+      "train_time_sec": 7.064,
+      "inference_latency_ms": 5.667
+    },
+    {
+      "model_name": "Pure Quantum Kernel (Q-SVR)",
+      "r2_score": 0.8685,
+      "mae_kg": 272828.9,
+      "rmse_kg": 532621.1,
+      "mape_pct": 38.82,
+      "train_time_sec": 6.818,
+      "inference_latency_ms": 5.638
+    },
+    {
+      "model_name": "Random Forest Regressor",
+      "r2_score": 0.9613,
+      "mae_kg": 141616.1,
+      "rmse_kg": 288764.7,
+      "mape_pct": 14.77,
+      "train_time_sec": 0.201,
+      "inference_latency_ms": 0.077
+    },
+    {
+      "model_name": "Gradient Boosting Regressor",
+      "r2_score": 0.97,
+      "mae_kg": 110475.4,
+      "rmse_kg": 254550.3,
+      "mape_pct": 12.82,
+      "train_time_sec": 0.809,
+      "inference_latency_ms": 0.006
+    },
+    {
+      "model_name": "Classical SVR (RBF Kernel)",
+      "r2_score": 0.9587,
+      "mae_kg": 138792.4,
+      "rmse_kg": 298622.7,
+      "mape_pct": 20.65,
+      "train_time_sec": 0.117,
+      "inference_latency_ms": 0.032
+    },
+    {
+      "model_name": "Linear Regression (Baseline)",
+      "r2_score": 0.7245,
+      "mae_kg": 513280.1,
+      "rmse_kg": 770988.9,
+      "mape_pct": 372.5,
+      "train_time_sec": 0.002,
+      "inference_latency_ms": 0.001
+    }
+  ]
+}
